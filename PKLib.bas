@@ -62,7 +62,7 @@ Public Function GetQueryHeaders(ws As Worksheet) As Collection
     Set listObj = ws.ListObjects(1)
     
     For Each listCol In listObj.ListColumns
-        result.Add Trim(listCol.Name)
+        result.add Trim(listCol.Name)
     Next listCol
     
     Set GetQueryHeaders = result
@@ -70,9 +70,9 @@ End Function
 Public Function GetQueryOperators() As Collection
     Dim result As Collection
     
-    result.Add "="
-    result.Add "CONTAINS"
-    result.Add "MATCH COLUMN"
+    result.add "="
+    result.add "CONTAINS"
+    result.add "MATCH COLUMN"
     
     Set GetQueryOperators = result
 End Function

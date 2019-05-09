@@ -12,10 +12,13 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Public Event OnActivate()
+Public Event Terminated()
+Private Sub UserForm_Terminate()
+    RaiseEvent Terminated
+End Sub
 Private Sub UserForm_Activate()
-    Dim columns As Collection
-    DoEvents
-    PKLib.Wait 3
-    
+    DoEvents ''<---Required to paint the splash screen content during this operation
+    RaiseEvent OnActivate
 End Sub
 

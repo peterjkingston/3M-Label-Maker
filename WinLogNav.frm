@@ -13,44 +13,59 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-#If Win64 Then
-    Private Declare PtrSafe Function SetForegroundWindow Lib "user32" _
-               (ByVal hWnd As LongPtr) As LongPtr
-#Else
-    Private Declare Function SetForegroundWindow Lib "user32" _
-               (ByVal hWnd As Long) As Long
-#End If
+Private WithEvents mManualEntry As WinManualEntry
+Attribute mManualEntry.VB_VarHelpID = -1
+
+Public Event RequestViewManualEntry(EditMode As Boolean, dataArgs() As String, index As Integer)
+Public Event RequestViewPrintPreview()
+Public Event Terminated()
+
 Private Sub ButtonClearAll_Click()
     If DataAccess.LabelCount = 0 Then Exit Sub
-    Functions.ClearLog
+    DataAccess.ClearLabels
     DrawPage
 End Sub
 
 Private Sub ButtonEdit_Click()
-    If DataAccess.LabelCount <> 0 Then
-        WinManualEntry.Caption = "Edit"
-        WinManualEntry.EditMode = True
-        WinManualEntry.Show
-        DrawPage
-    End If
+    Dim labelArgs(3) As String, column As Integer
+    With Me.ListBox1
+        For column = 0 To UBound(labelArgs)
+            labelArgs(column) = .list(.ListIndex, column)
+        Next column
+    End With
+    RaiseEvent RequestViewManualEntry(True, labelArgs, ListBox1.ListIndex)
+    DrawPage
 End Sub
 
 Private Sub ButtonManualEntry_Click()
-    WinManualEntry.Caption = "Manual Entry"
-    WinManualEntry.EditMode = False
-    WinManualEntry.Show
+    Dim labelArgs(3) As String, column As Integer
+    With Me.ListBox1
+        For column = 0 To UBound(labelArgs)
+            labelArgs(column) = "" ''
+        Next column
+    End With
+    RaiseEvent RequestViewManualEntry(False, labelArgs, 0)
     DrawPage
 End Sub
 
 Private Sub ButtonPrintPreview_Click()
-    WinPrintPreview.Show
+    ''WinPrintPreview.Show
+    RaiseEvent RequestViewPrintPreview
+    DrawPage
 End Sub
 
 Private Sub ButtonRemoveSelection_Click()
-    If WinLogNav.ListBox1.ListIndex <> -1 Then
-        Functions.RemoveItem (WinLogNav.ListBox1.ListIndex)
-        DrawPage
-    End If
+    Dim index As Integer
+    With Me.ListBox1
+        If .ListIndex <> -1 Then
+            index = .ListIndex
+            DataAccess.RemoveLabel index
+            DrawPage
+            If index = .ListCount Then: index = UBound(.list)
+            .ListIndex = index
+        End If
+    End With
+    DrawPage
 End Sub
 
 Private Sub ListBox1_DblClick(ByVal Cancel As MSForms.ReturnBoolean)
@@ -64,6 +79,14 @@ Private Sub ListBox1_Click()
     End If
 End Sub
 
+Private Sub mManualEntry_OnSubmit()
+    DrawPage
+End Sub
+
+Private Sub mManualEntry_Terminated()
+    Set mManualEntry = Nothing
+End Sub
+
 Private Sub UserForm_Activate()
     DrawPage
     If Me.ListBox1.ListIndex = -1 Then: Me.ButtonEdit.Enabled = False
@@ -71,27 +94,43 @@ Private Sub UserForm_Activate()
     
 End Sub
 
-Public Sub DrawPage()
+Private Sub DrawPage()
     If DataAccess.DataIsEmpty Then
-        WinLogNav.ListBox1.list = Array("EMPTY")
-        ButtonPrintPreview.Enabled = False
+        Me.ListBox1.list = Array("EMPTY")
+        Me.ButtonEdit.Enabled = False
         Me.ButtonRemoveSelection.Enabled = False
+        Me.ButtonPrintPreview.Enabled = False
     Else
-        WinLogNav.ListBox1.list = DataAccess.labelArray
-        ButtonPrintPreview.Enabled = True
+        Me.ListBox1.list = DataAccess.labelArray
+        Me.ButtonEdit.Enabled = True
+        Me.ButtonRemoveSelection.Enabled = True
+        Me.ButtonPrintPreview.Enabled = True
     End If
 End Sub
 
 Private Sub UserForm_Initialize()
     Application.Visible = True
     Sheet1.Activate
-    SetForegroundWindow Application.hWnd
     Application.Visible = False
     
-    DataAccess.AssembleGlobalDict
-    DataAccess.AssembleCorrectionDict
 End Sub
 
 Private Sub UserForm_Terminate()
-    Functions.TurnOn
+    RaiseEvent Terminated
+End Sub
+
+Public Sub FillEntries(ENTRY As iGenerateLabels.ENTRY_MODE)
+
+    Select Case ENTRY
+        Case ENTRY_MODE.MANUAL:
+            ''Do Nothing
+        Case ENTRY_MODE.LOAD_OUTLOOK_ENTRIES
+            DataAccess.SetUserLabelsOutlook
+        Case ENTRY_MODE.LOAD_SAVED_SET
+        
+    End Select
+
+End Sub
+Public Sub ListenTo(EventProvider As Object)
+    If TypeOf EventProvider Is WinManualEntry Then: Set mManualEntry = WinManualEntry
 End Sub

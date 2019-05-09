@@ -13,7 +13,13 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-Public EditMode As Boolean
+Public EditMode As Boolean, EditIndex As Integer
+
+Public Event Terminated()
+Public Event OnSubmit()
+Private Sub UserForm_Terminate()
+    RaiseEvent Terminated
+End Sub
 Private Sub AutomaticLookupEnabled_Click()
     DrawPage
 End Sub
@@ -43,16 +49,20 @@ Private Sub ButtonSubmit_Click()
     Dim valArray(3) As String
     
     valArray(0) = TextBoxSO.Value
-    valArray(2) = TextBoxPO.Value
     valArray(1) = TextBoxCName.Value
+    valArray(2) = TextBoxPO.Value
     valArray(3) = TextBoxCSRep.Value
     
     If EditMode Then
-        Functions.ReplaceData valArray
+        DataAccess.UpdateLabelArray EditIndex, valArray
     Else
         Functions.InputData valArray
     End If
-    WinLogNav.DrawPage
+
+    ''WinLogNav.DrawPage
+    ''WinLogNav.ListBox1.ListIndex = UBound(WinLogNav.ListBox1.list)
+    If EditMode Then: Me.Hide
+    RaiseEvent OnSubmit
 End Sub
 
 Private Sub ButtonCorrection_Click()
@@ -66,14 +76,14 @@ End Sub
 
 Private Sub TextBoxSO_Exit(ByVal Cancel As MSForms.ReturnBoolean)
     ''When any other object gains focus...
-    Dim so As String
+    Dim SO As String
     If TextBoxSO.TextLength >= 7 Then
         If AutomaticLookupEnabled Then
             ''...autofill the form
-            so = TextBoxSO.text
-            TextBoxPO.Value = DataAccess.GetPO(so)
-            TextBoxCName.Value = DataAccess.GetCustomerName(so)
-            TextBoxCSRep.Value = DataAccess.GetCSRep(so)
+            SO = TextBoxSO.text
+            TextBoxPO.Value = Trim(DataAccess.GetPO(SO))
+            TextBoxCName.Value = Trim(DataAccess.GetCustomerName(SO))
+            TextBoxCSRep.Value = Trim(DataAccess.GetCSRep(SO))
         End If
     End If
     DrawPage
@@ -82,22 +92,14 @@ End Sub
 Private Sub UserForm_Activate()
     Dim record As Integer, records() As String
     
-    record = WinLogNav.ListBox1.ListIndex
-    
     If EditMode Then
-        
-        With Me
-            records = DataAccess.labelArray
-            .TextBoxSO.text = records(record, 0)
-            .TextBoxPO.text = records(record, 1)
-            .TextBoxCName.text = records(record, 2)
-            .TextBoxCSRep.text = records(record, 3)
-             
-            .AutomaticLookupEnabled = False
-        End With
+        Me.AutomaticLookupEnabled = False
     Else
         Me.AutomaticLookupEnabled = True
     End If
     
+    DataAccess.SetPicture ButtonCorrection.picture, "PATH_EditIcon"
+
+    DoEvents
     DrawPage
 End Sub

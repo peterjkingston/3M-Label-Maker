@@ -14,279 +14,344 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Private m_LabelsThisPage(17) As Boolean, m_Pages As Collection, m_ActivePage As Integer
+Public Event Terminated()
+Public Event RequestViewPrintDialog()
+Private m_labelDisplayers As Collection
+Private Sub UserForm_Terminate()
+    RaiseEvent Terminated
+End Sub
 Private Sub ButtonBack_Click()
-    Alternate.ButtonBack_Click
+    Me.Hide
+    RaiseEvent Terminated
 End Sub
 Private Sub ButtonPageLeft_Click()
-    Alternate.ButtonPageLeft_Click
+    Dim adjusted As Integer
+    If m_ActivePage > 1 Then: adjusted = 1
+    m_ActivePage = m_ActivePage - adjusted
+    DrawLabels
 End Sub
 Private Sub ButtonPageRight_Click()
-    Alternate.ButtonPageRight_Click
+    Dim adjusted As Integer
+    If m_ActivePage < m_Pages.count Then: adjusted = 1
+    m_ActivePage = m_ActivePage + adjusted
+    DrawLabels
 End Sub
 
 Private Sub ButtonPrint_Click()
     Dim msg As String
-    PrintClient.Run GetPrintingPages
-    
-    msg = "Printing finished." & vbCrLf & vbCrLf & "Please review the printed documents before selecting an option below."
-    
-    WinPrintDialogue.Label1 = msg
-    WinPrintDialogue.Show
+    If MsgBox("Please ensure that ULINE S-19346 labels are loaded in your default printer and that your default printer is set appropriately.", vbOKCancel, "Before Printing...") = vbOK Then
+        PrintClient.Run GetPrintingPages(GetStickers)
+        RaiseEvent RequestViewPrintDialog
+        If Me.Visible Then: DrawLabels
+    End If
 End Sub
 Private Sub Label1_Click()
-    Alternate.Toggle 1
+    Toggle 1
 End Sub
 Private Sub Label2_Click()
-    Alternate.Toggle 2
+    Toggle 2
 End Sub
 Private Sub Label3_Click()
-    Alternate.Toggle 3
+    Toggle 3
 End Sub
 Private Sub Label4_Click()
-    Alternate.Toggle 4
+    Toggle 4
 End Sub
 Private Sub Label5_Click()
-    Alternate.Toggle 5
+    Toggle 5
 End Sub
 Private Sub Label6_Click()
-    Alternate.Toggle 6
+    Toggle 6
 End Sub
 Private Sub Label7_Click()
-    Alternate.Toggle 7
+    Toggle 7
 End Sub
 Private Sub Label8_Click()
-    Alternate.Toggle 8
+    Toggle 8
 End Sub
 Private Sub Label9_Click()
-    Alternate.Toggle 9
+    Toggle 9
 End Sub
 Private Sub Label10_Click()
-    Alternate.Toggle 10
+    Toggle 10
 End Sub
 Private Sub Label11_Click()
-    Alternate.Toggle 11
+    Toggle 11
 End Sub
 Private Sub Label12_Click()
-    Alternate.Toggle 12
+    Toggle 12
 End Sub
 Private Sub Label13_Click()
-    Alternate.Toggle 13
+    Toggle 13
 End Sub
 Private Sub Label14_Click()
-    Alternate.Toggle 14
+    Toggle 14
 End Sub
 Private Sub Label15_Click()
-    Alternate.Toggle 15
+    Toggle 15
 End Sub
 Private Sub Label16_Click()
-    Alternate.Toggle 16
+    Toggle 16
 End Sub
 Private Sub Label17_Click()
-    Alternate.Toggle 17
+    Toggle 17
 End Sub
 Private Sub Label18_Click()
-    Alternate.Toggle 18
+    Toggle 18
 End Sub
-Private Sub DrawLabels()
-    Dim stickers() As CSticker, openPositions() As Integer, position As Variant, stickerNum As Integer, activeLabel As MSForms.label, errorCount As Integer
-    
-    AdjustPageCount
-    
-    stickers = GetStickers
-    stickerNum = GetStartingSticker
-    openPositions = GetOpenPrintingPositionsAlternate
-    
-    Do While stickerNum > m_Pages.count * 18
-        If errorCount > 300 Then
-            MsgBox "A program  internal error has occurred."
-            Exit Sub
-        End If
-        errorCount = errorCount + 1
-        stickerNum = GetStartingSticker
-    Loop
-    
-    For Each position In openPositions
-        Set activeLabel = GetActiveLabel(CStr(position) & " KEY")
-            activeLabel.Caption = stickers(stickerNum - 1).CustomerName & vbCrLf & _
-                              stickers(stickerNum - 1).SalesOrderNumber
-        stickerNum = stickerNum + 1
-    Next position
-    
-    For position = 1 To 18
-        Set activeLabel = GetActiveLabel(CStr(position) & " KEY")
-        AssignColorAlternate activeLabel, CInt(position)
-    Next position
-    
-    DrawPageLabel
-    
+Private Sub UserForm_Activate()
+    InitializeData
 End Sub
-Private Sub Toggle(position As Integer)
-    Dim activeLabel As MSForms.label, boolCollection As Collection, bool As CEncapsulation
+Public Sub Toggle(position As Integer)
+    Dim activeDisplayer As MSForms.label, boolCollection As Collection, bool As CPrintable
     
-    Set activeLabel = GetActiveLabel(CStr(position) & " KEY")
-    Set boolCollection = m_Pages(m_ActivePage)
-    Set bool = New CEncapsulation
+    Set activeDisplayer = GetActiveLabelDisplayer(CStr(position) & " KEY")
+    Set boolCollection = m_Pages(m_ActivePage).Printables
+    Set bool = New CPrintable
+    bool.key = CStr(position) & " KEY"
     
-    If IsPrintableAlternate(m_ActivePage, position) Then
+    
+    If IsPrintableAlternate(m_ActivePage, bool.key) Then
         ''Turn it off
-        bool.Value = False
-        m_Pages(m_ActivePage).Remove CStr(position) & " KEY"
-        m_Pages(m_ActivePage).Add bool, CStr(position) & " KEY"
+        bool.IsPrintable = False
+        m_Pages(m_ActivePage).Printables.Remove bool.key
+        m_Pages(m_ActivePage).Printables.add bool, bool.key
     Else
         ''Turn it on
-        bool.Value = True
-        m_Pages(m_ActivePage).Remove CStr(position) & " KEY"
-        m_Pages(m_ActivePage).Add bool, CStr(position) & " KEY"
+        bool.IsPrintable = True
+        m_Pages(m_ActivePage).Printables.Remove bool.key
+        m_Pages(m_ActivePage).Printables.add bool, bool.key
     End If
     
     DrawLabels
     
 End Sub
-Private Function IsPrintable(position As Integer) As Boolean
-    Dim table As Range
+Private Sub InitializeData()
+    Dim newPage As CPrintablePage
+    Set m_Pages = New Collection
     
-    Set table = Names("Printing_Positions").RefersToRange
+    Set newPage = GetFreshPage
+    m_ActivePage = 1
+    m_Pages.add newPage
     
-    IsPrintable = table(position, 2)
+    Set m_labelDisplayers = GetDisplayers
+    
+    DrawLabels
+End Sub
+Private Function GetDisplayers() As Collection
+    Dim result As Collection
+    Set result = New Collection
+    
+    With Me
+        result.add .Label1
+        result.add .Label2
+        result.add .Label3
+        result.add .Label4
+        result.add .Label5
+        result.add .Label6
+        result.add .Label7
+        result.add .Label8
+        result.add .Label9
+        result.add .Label10
+        result.add .Label11
+        result.add .Label12
+        result.add .Label13
+        result.add .Label14
+        result.add .Label15
+        result.add .Label16
+        result.add .Label17
+        result.add .Label18
+    End With
+    
+    Set GetDisplayers = result
     
 End Function
-Private Function IsPrintableAlternate(Page As Integer, position As Integer) As Boolean
+Private Function GetFreshPage() As CPrintablePage
+    Dim result As CPrintablePage
+    Set result = New CPrintablePage
     
-    IsPrintableAlternate = m_Pages(Page)(position).Value
+    Set result.Printables = GetBlankCollection(18, True)
     
+    Set GetFreshPage = result
 End Function
-Private Function GetActiveLabel(position As String) As MSForms.label
-     Dim activeLabel As MSForms.label
+Private Function GetBlankCollection(indexCount As Integer, defaultValue As Variant) As Collection
+    Dim result As Collection, i As Integer, printable As CPrintable
+    
+    Set result = New Collection
+    
+    For i = 1 To indexCount
+        Set printable = New CPrintable
+        printable.IsPrintable = defaultValue
+        printable.key = CStr(i) & " KEY"
+        result.add printable, printable.key
+    Next i
+    
+    Set GetBlankCollection = result
+End Function
+Private Function GetActiveLabelDisplayer(position As String) As MSForms.label
+     Dim activeDisplayer As MSForms.label
      
     Select Case position
         Case "1 KEY"
-            Set activeLabel = Label1
+            Set activeDisplayer = Me.Label1
         Case "2 KEY"
-            Set activeLabel = Label2
+            Set activeDisplayer = Me.Label2
         Case "3 KEY"
-            Set activeLabel = Label3
+            Set activeDisplayer = Me.Label3
         Case "4 KEY"
-            Set activeLabel = Label4
+            Set activeDisplayer = Me.Label4
         Case "5 KEY"
-            Set activeLabel = Label5
+            Set activeDisplayer = Me.Label5
         Case "6 KEY"
-            Set activeLabel = Label6
+            Set activeDisplayer = Me.Label6
         Case "7 KEY"
-            Set activeLabel = Label7
+            Set activeDisplayer = Me.Label7
         Case "8 KEY"
-            Set activeLabel = Label8
+            Set activeDisplayer = Me.Label8
         Case "9 KEY"
-            Set activeLabel = Label9
+            Set activeDisplayer = Me.Label9
         Case "10 KEY"
-            Set activeLabel = Label10
+            Set activeDisplayer = Me.Label10
         Case "11 KEY"
-            Set activeLabel = Label11
+            Set activeDisplayer = Me.Label11
         Case "12 KEY"
-            Set activeLabel = Label12
+            Set activeDisplayer = Me.Label12
         Case "13 KEY"
-            Set activeLabel = Label13
+            Set activeDisplayer = Me.Label13
         Case "14 KEY"
-            Set activeLabel = Label14
+            Set activeDisplayer = Me.Label14
         Case "15 KEY"
-            Set activeLabel = Label15
+            Set activeDisplayer = Me.Label15
         Case "16 KEY"
-            Set activeLabel = Label16
+            Set activeDisplayer = Me.Label16
         Case "17 KEY"
-            Set activeLabel = Label17
+            Set activeDisplayer = Me.Label17
         Case "18 KEY"
-            Set activeLabel = Label18
+            Set activeDisplayer = Me.Label18
     End Select
     
-    Set GetActiveLabel = activeLabel
+    Set GetActiveLabelDisplayer = activeDisplayer
 End Function
-Public Function GetOpenPrintingPositions() As Integer()
-    Dim ints As Collection, intArray() As Integer, table As Range, i As Variant
+Private Sub DrawLabels()
+    Dim stickers As Collection, printable As CPrintable, stickerNum As Integer, activeDisplayer As MSForms.label, printableID As Integer, printablePage As CPrintablePage
     
-    Set ints = New Collection
-    Set table = Names("Printing_Positions").RefersToRange
+    AdjustPageCount
     
-    For i = 1 To 18
-        If table(CInt(i), 2) Then
-            ints.Add (CInt(i))
+    Set stickers = GetStickers
+    stickerNum = GetStartingSticker
+    
+    ''If a spot on the page is marked for usage, print the next available label
+    printableID = 1
+    For Each activeDisplayer In m_labelDisplayers
+        Set printable = m_Pages(m_ActivePage).Printables(printableID & " KEY")
+        If printable.IsPrintable Then
+            activeDisplayer.Caption = stickers(stickerNum).Body
+            stickerNum = stickerNum + 1
         End If
-    Next i
+        printableID = printableID + 1
+    Next activeDisplayer
     
-    If ints.count <> 0 Then
-        ReDim intArray(ints.count - 1) As Integer
-        
-        j = 0
-        For Each i In ints
-            intArray(j) = CInt(i)
-            j = j + 1
-        Next i
-        
-        GetOpenPrintingPositions = intArray
-    Else
-        ReDim intArray(20) As Integer
-        GetOpenPrintingPositions = intArray
-    End If
+    printableID = 1
+    For Each activeDisplayer In m_labelDisplayers
+        Set printablePage = m_Pages(m_ActivePage)
+        AssignColorAlternate activeDisplayer, printableID & " KEY"
+        printableID = printableID + 1
+    Next activeDisplayer
     
-End Function
-Public Function GetOpenPrintingPositionsAlternate() As Integer()
-    Dim val As Boolean, i As Variant, ints As Collection, intArray() As Integer, data As Object
-    
-    Set ints = New Collection
-    
-    For i = 1 To 18
-        If m_Pages(m_ActivePage)(i & " KEY").Value Then
-            ints.Add i, i & " KEY"
-        End If
-    Next i
-    
-    If ints.count <> 0 Then
-        ReDim intArray(ints.count - 1) As Integer
-        
-        j = 0
-        For Each i In ints
-            intArray(j) = ints(CStr(i) & " KEY")
-            j = j + 1
-        Next i
-    Else
-        ReDim intArray(20) As Integer
-    End If
-    
-    GetOpenPrintingPositionsAlternate = intArray
-    
-End Function
-Private Function GetConditionalPrintCell(position As Integer) As Range
-    Dim table As Range
-    
-    Set table = Names("Printing_Positions").RefersToRange
-    
-    Set GetConditionalPrintCell = table(position, 2)
-End Function
-Private Sub AssignColor(activeLabel As MSForms.label, position As Integer)
-    Dim table As Range, boolVal As Boolean
-    
-    Set table = Names("Printing_Positions").RefersToRange
-    boolVal = table(position, 2)
-    
-    Select Case boolVal
-        Case True
-            activeLabel.BackColor = &H8000000B
-        Case False
-            activeLabel.BackColor = &H80000007
-    End Select
+    DrawPageLabel
     
 End Sub
-Private Sub AssignColorAlternate(activeLabel As MSForms.label, position As Integer)
+Private Sub AssignColorAlternate(activeDisplayer As MSForms.label, printableKEY As String)
     Dim boolVal As Boolean
     
-    boolVal = m_Pages(m_ActivePage)(position & " KEY").Value
+    boolVal = m_Pages(m_ActivePage).Printables(printableKEY).IsPrintable
     
     Select Case boolVal
         Case True
-            activeLabel.BackColor = &H8000000B
+            activeDisplayer.BackColor = &H8000000B
         Case False
-            activeLabel.BackColor = &H80000007
+            activeDisplayer.BackColor = &H80000007
     End Select
     
 End Sub
+Private Sub DrawPageLabel()
+    ''Toggle availability of the page left button
+    If m_ActivePage = 1 Then
+        Me.ButtonPageLeft.Enabled = False
+    Else
+        Me.ButtonPageLeft.Enabled = True
+    End If
+    
+    ''Toggle the availability of the page right button
+    If m_Pages.count = m_ActivePage Then
+        Me.ButtonPageRight.Enabled = False
+    Else
+        Me.ButtonPageRight.Enabled = True
+    End If
+    
+    ''Fill in the label at the bottom
+    Me.PageLabel.Caption = "Page " & CStr(m_ActivePage) & "/" & CStr(m_Pages.count)
+End Sub
+Private Sub AdjustPageCount()
+    
+    ''If there aren't enough pages for all the labels, add one until there are enough pages
+    Do While DataAccess.LabelCount > GetTotalPrintablesCount
+        m_Pages.add GetFreshPage
+    Loop
+    
+    ''If there all the labels fit on one page less that what there is, remove a page from the end, loop
+    Do While DataAccess.LabelCount < GetPrintablesFromTo(1, m_Pages.count - 1)
+       m_Pages.Remove m_Pages.count
+    Loop
+    
+End Sub
+Private Function GetStickers() As Collection
+    Dim i As Integer, currentSticker As CSticker, stickersCollection As Collection, stickersArray() As CSticker, totalStickers As Integer, labelArray() As String
+    
+    Set stickersCollection = New Collection
+    totalStickers = RoundUpTo18(DataAccess.LabelCount)
+    labelArray = DataAccess.labelArray
+    
+    For i = 0 To totalStickers - 1
+        Set currentSticker = New CSticker
+        
+        If i >= DataAccess.LabelCount Then
+            currentSticker.CustomerName = ""
+            currentSticker.SalesOrderNumber = ""
+            currentSticker.CSName = ""
+        Else
+            currentSticker.CustomerName = labelArray(i, 1)
+            currentSticker.SalesOrderNumber = labelArray(i, 0)
+            currentSticker.CSName = labelArray(i, 3)
+        End If
+        
+        stickersCollection.add currentSticker
+    Next i
+    
+    Do While (stickersCollection.count / 18) < m_Pages.count
+        Set currentSticker = New CSticker
+        
+        stickersCollection.add currentSticker
+    Loop
+    
+    Set GetStickers = stickersCollection
+End Function
+Private Function GetStickersNoExcess() As Collection
+    Dim table As Range, i As Integer, currentSticker As CSticker, stickersCollection As Collection, stickersArray() As CSticker, totalStickers As Integer
+    
+    Set table = Names(Globals.dataTableName).RefersToRange
+    Set stickersCollection = New Collection
+    totalStickers = RoundUpTo18(table.count / 2)
+    
+    For i = 1 To totalStickers
+        Set currentSticker = New CSticker
+        currentSticker.CustomerName = "" ''TODO ''table(i, Globals.dataColumnCustomerName)
+        currentSticker.SalesOrderNumber = "" ''TODO ''table(i, Globals.dataColumnSO)
+        stickersCollection.add currentSticker
+    Next i
+    
+    Set GetStickersNoExcess = stickersCollection
+End Function
 Private Function RoundUpTo18(val As Integer) As Integer
     Dim num As Integer
     num = Abs(val - 18) + val
@@ -295,116 +360,66 @@ Private Function RoundUpTo18(val As Integer) As Integer
         
     RoundUpTo18 = num
 End Function
-
-Private Sub UserForm_Activate()
-    Alternate.InitializeData
-    'Alternate.DrawLabels
-End Sub
-Private Sub InitializeData()
-    Dim newCollection As Collection
-    Set m_Pages = New Collection
-    
-    Set newCollection = GetBlankCollection(18, True)
-    m_ActivePage = 1
-    m_Pages.Add newCollection, "1 KEY"
-    
-End Sub
-Private Function GetBlankArray(indexCount As Integer, defaultValue As Variant) As Variant
-    Dim result() As Variant, i As Integer
-    
-    ReDim result(indexCount - 1) As Variant
-    
-    For i = 0 To UBound(result)
-        result(i) = defaultValue
-    Next i
-    
-    GetBlankArray = result
-End Function
-Private Function GetBlankCollection(indexCount As Integer, defaultValue As Variant) As Collection
-    Dim result As Collection, i As Integer, bool As CEncapsulation
-    
-    Set result = New Collection
-    
-    For i = 1 To indexCount
-        Set bool = New CEncapsulation
-        bool.Value = defaultValue
-        result.Add bool, CStr(i) & " KEY"
-    Next i
-    
-    Set GetBlankCollection = result
-End Function
-Private Sub DrawPageLabel()
-    ''Toggle availability of the page left button
-    If m_ActivePage = 1 Then
-        ButtonPageLeft.Enabled = False
-    Else
-        ButtonPageLeft.Enabled = True
-    End If
-    
-    ''Toggle the availability of the page right button
-    If m_Pages.count = m_ActivePage Then
-        ButtonPageRight.Enabled = False
-    Else
-        ButtonPageRight.Enabled = True
-    End If
-    
-    ''Fill in the label at the bottom
-    PageLabel.Caption = "Page " & CStr(m_ActivePage) & "/" & CStr(m_Pages.count)
-End Sub
 Private Function GetStartingSticker() As Integer
     Dim Page As Integer, sticker As Integer, count As Integer
     
-    If m_ActivePage <> 1 Then
-        For Page = 1 To m_ActivePage
-            For sticker = 1 To 18
-                If IsPrintableAlternate(Page, sticker) Then
-                    count = count + 1
-                End If
-            Next sticker
-        Next Page
-    End If
+    For Page = 1 To m_ActivePage - 1
+        count = count + m_Pages(Page).TrueCount
+    Next Page
     
     GetStartingSticker = count + 1
 End Function
-Private Function GetPrintablesCount(Page As Integer) As Integer
-    Dim count As Integer, i As Integer
-    
-    For i = 1 To 18
-        If IsPrintableAlternate(Page, i) Then
-            count = count + 1
-        End If
-    Next i
-    
-    GetPrintablesCount = count
-End Function
 Private Function GetPrintablesFromTo(fromPage As Integer, toPage As Integer) As Integer
-    Dim i As Integer, count As Integer
+    Dim Page As Integer, count As Integer
     
-    For i = fromPage To toPage
-        count = count + GetPrintablesCount(i)
-    Next i
+    For Page = fromPage To toPage
+        count = count + m_Pages(Page).TrueCount
+    Next Page
     
     GetPrintablesFromTo = count
 End Function
 Private Function GetTotalPrintablesCount() As Integer
-    Dim count As Integer, i As Integer
+    Dim count As Integer, printablePage As CPrintablePage
     
-    For i = 1 To m_Pages.count
-        count = count + GetPrintablesCount(i)
-    Next i
+    For Each printablePage In m_Pages
+        count = count + printablePage.TrueCount
+    Next printablePage
     
     GetTotalPrintablesCount = count
 End Function
-Private Sub AdjustPageCount()
+Private Function IsPrintableAlternate(Page As Integer, printableKEY As String) As Boolean
     
-    ''If there aren't enough pages for all the labels, add one until there are enough pages
-    Do While m_Pages.count > (GetTotalPrintablesCount / 18)
-        m_Pages.Add GetFreshPage
-    Loop
+    IsPrintableAlternate = m_Pages(Page).Printables(printableKEY).IsPrintable
     
-    ''If there all the labels fit on one page less that what there is, remove a page from the end, loop
-    Do While DataAccess.LabelCount < GetPrintablesFromTo(1, m_Pages.count - 1)
-       m_Pages.Remove CStr(m_Pages.count) & " KEY"
-    Loop
+End Function
+Private Function GetPrintingPages(stickers As Collection) As Collection
     
-End Sub
+    Dim ablePage As CPrintablePage, printable As CPrintable, sticker As CSticker, stickerNum As Integer, printableNum As Integer
+    ''Out
+    Dim printingPage As CPrintingPage, printingPages As Collection
+    
+    Set printingPages = New Collection
+    stickerNum = 1
+    
+    For Each ablePage In m_Pages
+        Set printingPage = New CPrintingPage
+        
+        For printableNum = 1 To ablePage.Printables.count
+                
+            Set printable = ablePage.Printables(printableNum & " KEY")
+                
+            If printable.IsPrintable Then
+                Set sticker = stickers(stickerNum)
+                stickerNum = stickerNum + 1
+            Else
+                Set sticker = New CSticker
+            End If
+            
+            printingPage.stickers.add sticker
+                
+        Next printableNum
+        printingPages.add printingPage
+    Next ablePage
+    
+    Set GetPrintingPages = printingPages
+End Function

@@ -27,11 +27,11 @@ Private Function GetPageRanges() As Collection
         column = 1
         Set tempRange = Range(ws.Cells(row, column), ws.Cells(row + 3, column + 3))
         
-        result.Add tempRange
+        result.add tempRange
         
         Set tempRange = Range(ws.Cells(row, column + 5), ws.Cells(row + 3, column + 8))
     
-        result.Add tempRange
+        result.add tempRange
         
     Next lookuprow
     

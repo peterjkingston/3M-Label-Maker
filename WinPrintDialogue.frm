@@ -13,24 +13,40 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Public Event Terminated()
+Public Event OnClearAll()
+Public Event OnQuit()
+Public Event OnReturn()
+
+Private Sub UserForm_Activate()
+    msg = "Printing finished." & vbCrLf & vbCrLf & "Please review the printed documents before selecting an option below."
+    Label1 = msg
+End Sub
+
+Private Sub UserForm_Terminate()
+    RaiseEvent Terminated
+End Sub
 Private Sub ButtonCAQuit_Click()
-    Functions.ClearLog
+    DataAccess.ClearLabels
     ButtonQuit_Click
 End Sub
 
 Private Sub ButtonCAReturn_Click()
-    Functions.ClearLog
-    WinLogNav.DrawPage
+    DataAccess.ClearLabels
     
     ButtonReturn_Click
-    WinPrintPreview.Hide
+    ''WinPrintPreview.Hide
+    
 End Sub
 Private Sub ButtonQuit_Click()
+    ''Me.Hide
+    ''WinPrintPreview.Hide
+    ''WinLogNav.Hide
     Me.Hide
-    WinPrintPreview.Hide
-    WinLogNav.Hide
+    RaiseEvent OnQuit
 End Sub
 Private Sub ButtonReturn_Click()
     Me.Hide
+    RaiseEvent OnReturn
 End Sub
 
