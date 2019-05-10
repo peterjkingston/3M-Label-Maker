@@ -84,6 +84,7 @@ End Sub
 
 Private Sub mLogNav_Terminated()
     Set mLogNav = Nothing
+    DataAccess.ClearLabels
 End Sub
 
 Private Sub mMainNav_Terminated()
@@ -92,6 +93,7 @@ End Sub
 
 Private Sub mManualEntry_Terminated()
     Set mManualEntry = Nothing
+    
 End Sub
 
 Private Sub mPreferredEntry_Terminated()

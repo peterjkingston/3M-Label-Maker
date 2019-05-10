@@ -22,7 +22,11 @@ Public Sub UpdateLabelArray(indexBase0 As Integer, info() As String)
     Set m_LabelList = newCollection
 End Sub
 Public Sub ClearLabels()
-    Set m_LabelList = New Collection
+    ''Set m_LabelList = New Collection
+    Dim row As Integer
+    For row = 1 To m_LabelList.count
+        m_LabelList.Remove 1
+    Next row
 End Sub
 Public Sub AddLabel(info() As String)
     If m_LabelList Is Nothing Then: Set m_LabelList = New Collection
@@ -50,8 +54,7 @@ Public Function GetCustomerName(key As String) As String
         GetCustomerName = "<NOT FOUND>"
         Exit Function
     End If
-    GetCustomerName = GetCorrectCName(Trim(GetSoldTo(key)), Trim(m_DictSORecord.Item(key)(1)))
-
+    GetCustomerName = Truncate(GetCorrectCName(Trim(GetSoldTo(key)), Trim(m_DictSORecord.Item(key)(1))), 25)
 End Function
 Public Function GetCSRep(key As String) As String
     If m_DictSORecord Is Nothing Then: AssembleDataAccess
@@ -265,4 +268,11 @@ Public Function GetColumnNames() As String()
     Set rCursor = rCursor.GetCursorReaderOnlyHeaders(Main.Program.StoreObject("PATH_USOrders").Value, "|", query)
     
     GetColumnNames = rCursor.GetColumnNames
+End Function
+Private Function Truncate(strVal As String, numMaxChars As Integer) As String
+    If Len(strVal) > numMaxChars Then
+        Truncate = Left$(strVal, numMaxChars) & "..."
+    Else
+        Truncate = strVal
+    End If
 End Function
