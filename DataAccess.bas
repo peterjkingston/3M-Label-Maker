@@ -92,14 +92,16 @@ Public Function AddPreferredName(soldTo As String, preferredName As String) As B
     newData.add preferredName
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").Value, "|", rqColumns, query)
+    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").value, "|", rqColumns, query)
+    
+    RemoveIfExists newData(1), rCursor
     
     success = rCursor.TryAddRecord(newData)
          
     Set wCursor = New CCursorWriter
     Set wCuror = wCursor.GetCursorWriter(rCursor)
     
-    wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").Value, "|"
+    wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").value, "|"
     AddPreferredName = success
 Exit Function
 ErrorHandler:
@@ -107,6 +109,17 @@ ErrorHandler:
     Resume
     AddPreferredName = False
 End Function
+Private Sub RemoveIfExists(value As String, rCursor As CCursorReader)
+    Dim recordIndex As Integer
+    For recordIndex = 0 To rCursor.recordCount - 1
+        If rCursor.GetRecord(recordIndex)(0) = value Then
+            rCursor.TryRemoveRecord recordIndex
+        Exit Sub
+        End If
+    Next recordIndex
+    
+End Sub
+
 Public Function ChangePreferredName(soldTo As String, preferredName As String) As Boolean
     Dim rCursor As CCursorReader, result() As String, rqColumns(0) As String, query(0) As String
     Dim row As Integer
@@ -114,7 +127,7 @@ Public Function ChangePreferredName(soldTo As String, preferredName As String) A
     
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").Value, "|", rqColumns, query)
+    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").value, "|", rqColumns, query)
     
     For row = 0 To rCursor.recordCount - 1
         If Trim(rCursor.GetRecord(row)(0)) = soldTo Then
@@ -131,14 +144,14 @@ Public Function ChangePreferredName(soldTo As String, preferredName As String) A
     Set wCursor = New CCursorWriter
     Set wCursor = wCursor.GetCursorWriter(rCursor)
     
-    wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").Value, "|"
+    wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").value, "|"
 End Function
 
 Public Function GetPreferredNames() As String()
     Dim rCursor As CCursorReader, result() As String, rqColumns(0) As String, query(0) As String
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").Value, "|", rqColumns, query)
+    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").value, "|", rqColumns, query)
     
     GetPreferredNames = rCursor.GetRecords2DArray
 End Function
@@ -147,12 +160,12 @@ Public Sub RemovePreferredName(index As Integer)
     Dim wCursor As CCursorWriter
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").Value, "|", rqColumns, query)
+    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_NameFix").value, "|", rqColumns, query)
     If rCursor.TryRemoveRecord(index) Then
     
         Set wCursor = New CCursorWriter
         Set wCursor = wCursor.GetCursorWriter(rCursor)
-        wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").Value, "|"
+        wCursor.WriteToFile Main.Program.StoreObject("PATH_NameFix").value, "|"
         
     Else
         Error "Invalid index requested for removal"
@@ -161,7 +174,7 @@ End Sub
 Public Function WriteCorrection(soldToNum As String, preferedName As String)
     Dim newRecord As Collection, rCursor As CCursorReader, wCursor As CCursorWriter, rqColumns(1) As String, query(0) As String, correctionPath As String
     Set newRecord = New Collection
-    correctionPath = Main.Program.StoreObject("PATH_NameFix").Value
+    correctionPath = Main.Program.StoreObject("PATH_NameFix").value
     
     newRecord.add soldToNum
     newRecord.add preferedName
@@ -183,7 +196,7 @@ Private Sub AssembleDataAccess()
 End Sub
 Public Sub SetPicture(picture As StdPicture, storeArg As String)
     Dim picPath As String, picDisp As IPictureDisp
-    picPath = Main.Program.StoreObject(storeArg).Value
+    picPath = Main.Program.StoreObject(storeArg).value
     Set picture = StdFunctions.LoadPicture(picPath)
     
 End Sub
@@ -257,7 +270,7 @@ Public Function GetQueries() As String()
     Dim rCursor As CCursorReader, rqColumns(0) As String, query(0) As String
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_Queries").Value, "|", rqColumns, query)
+    Set rCursor = rCursor.GetCursorReader(Main.Program.StoreObject("PATH_Queries").value, "|", rqColumns, query)
     
     GetQueries = rCursor.GetRecords2DArray
 End Function
@@ -265,7 +278,7 @@ Public Function GetColumnNames() As String()
     Dim rCursor As CCursorReader, query(0) As String
     
     Set rCursor = New CCursorReader
-    Set rCursor = rCursor.GetCursorReaderOnlyHeaders(Main.Program.StoreObject("PATH_USOrders").Value, "|", query)
+    Set rCursor = rCursor.GetCursorReaderOnlyHeaders(Main.Program.StoreObject("PATH_USOrders").value, "|", query)
     
     GetColumnNames = rCursor.GetColumnNames
 End Function
