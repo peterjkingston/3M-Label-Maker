@@ -1,5 +1,5 @@
 # ULINE-Label-Maker
-
+A brief VBA application used to pull data from text file data tables and generate labels. Sized for ULINE S-19346. Spreadsheet template not included.
 
 # Project References
 Microsoft Excel 16.0 Object Library
